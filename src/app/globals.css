@@ -1,0 +1,339 @@
+@import "tailwindcss";
+
+@theme {
+  /* ---- ground -------------------------------------------------------- */
+  --color-pitch: #060605;
+  --color-char: #0f100e;
+  --color-char2: #171814;
+  --color-ash: #24261f;
+  --color-ash2: #34372e;
+  --color-steel: #8b8f84;
+  --color-steel2: #5d6157;
+
+  /* ---- paper --------------------------------------------------------- */
+  --color-cream: #e4dcc4;
+  --color-cream2: #b9b19b;
+  --color-paper: #efe7d1;
+  --color-paper2: #ddd3b8;
+  --color-pink: #f2c8d0;
+  --color-pink2: #e0a3af;
+  --color-pinkink: #7d1f2e;
+
+  /* ---- money --------------------------------------------------------- */
+  --color-term: #55e894;
+  --color-term2: #2fae67;
+  --color-money: #12331f;
+  --color-money2: #1d5233;
+  --color-ox: #7d1414;
+  --color-ox2: #b8271b;
+  --color-red: #e0492f;
+  --color-brass: #b8933f;
+
+  /* ---- type ---------------------------------------------------------- */
+  --font-display: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  --font-cond: var(--font-cond), "Arial Narrow", Arial, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-none: 0px;
+}
+
+:root {
+  color-scheme: dark;
+  --tape-h: 30px;
+}
+
+/* Base element styles live in @layer base on purpose: unlayered rules beat
+   Tailwind's layered utilities, and an unlayered `a { color: inherit }` quietly
+   wins over every text-* utility on a link. */
+@layer base {
+  * {
+    border-color: color-mix(in oklab, var(--color-ash2) 70%, transparent);
+  }
+
+  html,
+  body {
+    background: var(--color-pitch);
+    color: var(--color-cream);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-term);
+    color: #04140b;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  a {
+    outline-offset: 2px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-term);
+  }
+}
+
+/* ---------------------------------------------------------------- texture */
+
+/* Photocopier grain. Felt, not screamed. */
+.tex-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  z-index: 3;
+}
+
+.tex-scan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.38) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  z-index: 2;
+}
+
+.tex-paper {
+  background-color: var(--color-paper);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(120, 96, 60, 0.045) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 20% 10%, rgba(160, 130, 80, 0.13), transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(140, 110, 70, 0.15), transparent 50%);
+  color: #17140d;
+}
+
+.tex-pink {
+  background-color: var(--color-pink);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(125, 31, 46, 0.05) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 12% 8%, rgba(125, 31, 46, 0.1), transparent 45%),
+    radial-gradient(circle at 88% 92%, rgba(125, 31, 46, 0.12), transparent 45%);
+  color: #2a0d13;
+}
+
+/* Anything printed on paper flips the palette to ink instead of screen colours.
+   Terminal green at 55e894 on pink sheet stock is unreadable, so the same
+   components re-render in ledger ink without a second set of class names. */
+.on-paper {
+  --color-term: #0d5c2f;
+  --color-term2: #0d5c2f;
+  --color-red: #8e1b1b;
+  --color-ox2: #7d1414;
+  --color-brass: #6b4d12;
+  --color-cream: #17140d;
+  --color-cream2: #3a352a;
+  --color-steel: rgba(23, 20, 13, 0.62);
+  --color-steel2: rgba(23, 20, 13, 0.48);
+  --color-ash2: rgba(23, 20, 13, 0.22);
+  --color-pink2: #7d1f2e;
+}
+
+.paper-edge {
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.35),
+    0 18px 40px -20px rgba(0, 0, 0, 0.9),
+    inset 0 0 0 1px rgba(60, 40, 20, 0.16);
+}
+
+.crt-bloom {
+  text-shadow: 0 0 12px color-mix(in oklab, var(--color-term) 45%, transparent);
+}
+
+/* ------------------------------------------------------------- utilities */
+
+.hair {
+  border-width: 1px;
+  border-style: solid;
+}
+
+.rule-cream {
+  border-color: color-mix(in oklab, var(--color-cream) 22%, transparent);
+}
+
+.mono-tight {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+
+.cond {
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-steel);
+}
+
+.stamp {
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 2px solid currentColor;
+  padding: 2px 8px;
+  transform: rotate(-3.5deg);
+  display: inline-block;
+  opacity: 0.85;
+}
+
+/* --------------------------------------------------------------- motion */
+
+@keyframes tape-roll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.tape-roll {
+  animation: tape-roll 70s linear infinite;
+  will-change: transform;
+}
+
+.tape-roll-fast {
+  animation: tape-roll 34s linear infinite;
+}
+
+@keyframes print-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+.print-in {
+  animation: print-in 0.42s steps(9, end) both;
+}
+
+@keyframes lamp {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  47% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 0.45;
+  }
+  53% {
+    opacity: 0.8;
+  }
+}
+
+.lamp {
+  animation: lamp 6.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+.blink {
+  animation: blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes flash-up {
+  from {
+    background-color: color-mix(in oklab, var(--color-term) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down {
+  from {
+    background-color: color-mix(in oklab, var(--color-red) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.flash-up {
+  animation: flash-up 0.7s ease-out 1;
+}
+.flash-down {
+  animation: flash-down 0.7s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tape-roll,
+  .tape-roll-fast,
+  .print-in,
+  .lamp,
+  .blink,
+  .flash-up,
+  .flash-down {
+    animation: none !important;
+  }
+}
+
+/* --------------------------------------------------------------- chrome */
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-char);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ash2);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-steel2);
+}
+
