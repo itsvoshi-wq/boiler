@@ -3,6 +3,7 @@ export function usd(n: number | null | undefined, opts: { compact?: boolean; sig
   const abs = Math.abs(n);
   if (opts.compact && abs >= 1000) {
     const units = [
+      { v: 1e15, s: "Q" },
       { v: 1e12, s: "T" },
       { v: 1e9, s: "B" },
       { v: 1e6, s: "M" },
@@ -13,6 +14,9 @@ export function usd(n: number | null | undefined, opts: { compact?: boolean; sig
     }
   }
   if (abs === 0) return "$0.00";
+  // Nothing legitimate on this floor is this big. Show it as what it is rather
+  // than as a wall of digits.
+  if (abs >= 1e18) return `$${n.toExponential(3)}`;
   if (abs < 0.000001) return `$${n.toExponential(2)}`;
   if (abs < 1) return `$${n.toFixed(Math.min(8, Math.max(4, opts.sig ?? 6)))}`;
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

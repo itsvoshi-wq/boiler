@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 type Variant = "key" | "ghost" | "stamp" | "danger";
 
 const base =
-  "inline-flex items-center justify-center gap-2 cond text-[13px] leading-none px-4 py-3 border transition-[transform,background-color,color] duration-75 active:translate-y-[1px] select-none";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap cond text-[13px] leading-none px-4 py-3 border transition-[transform,background-color,color] duration-75 active:translate-y-[1px] select-none";
 
 const variants: Record<Variant, string> = {
   key: "bg-cream text-pitch border-cream hover:bg-term hover:border-term shadow-[0_3px_0_0_rgba(0,0,0,0.55)] active:shadow-[0_1px_0_0_rgba(0,0,0,0.55)]",

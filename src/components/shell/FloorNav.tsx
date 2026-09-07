@@ -31,12 +31,12 @@ export function FloorNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-ash2 bg-pitch/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1800px] items-center gap-4 px-3 py-2">
-        <Link href="/" className="flex items-center gap-2 pr-3">
+        <Link href="/" className="flex shrink-0 items-center gap-2 pr-3">
           <ValveMark className="text-ox2" />
           <Wordmark size="sm" withRule={false} />
         </Link>
 
-        <nav className="flex items-center gap-0 overflow-x-auto" aria-label="Floor">
+        <nav className="flex min-w-0 flex-1 items-center gap-0 overflow-x-auto" aria-label="Floor">
           {PRIMARY.map((l) => (
             <Link
               key={l.href}
@@ -66,16 +66,16 @@ export function FloorNav() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <Link
             href="/books"
-            className="hidden border border-ash2 px-3 py-2 mono-tight text-[10px] tracking-[0.16em] text-steel hover:border-cream hover:text-cream md:inline-block"
+            className="hidden whitespace-nowrap border border-ash2 px-3 py-2 mono-tight text-[10px] tracking-[0.16em] text-steel hover:border-cream hover:text-cream lg:inline-block"
           >
             SEE THE BOOKS
           </Link>
           <Link
             href="/floor"
-            className="border border-cream bg-cream px-3 py-2 cond text-[12px] text-pitch hover:bg-term hover:border-term"
+            className="whitespace-nowrap border border-cream bg-cream px-3 py-2 cond text-[12px] text-pitch hover:border-term hover:bg-term"
           >
             ENTER THE FLOOR
           </Link>

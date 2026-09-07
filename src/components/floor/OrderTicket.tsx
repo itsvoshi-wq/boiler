@@ -358,8 +358,8 @@ function Row({
   tone?: "bad";
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className={cn("tracking-[0.12em]", dark ? "text-steel2" : "text-black/50")}>{k}</dt>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+      <dt className={cn("min-w-0 tracking-[0.12em]", dark ? "text-steel2" : "text-black/50")}>{k}</dt>
       <dd
         className={cn(
           "tabular text-right",

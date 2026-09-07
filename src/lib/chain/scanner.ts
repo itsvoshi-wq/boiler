@@ -31,6 +31,19 @@ const SCAN_BLOCKS = Number(process.env.SCAN_BLOCKS || 3000);
 const CHUNK_BLOCKS = Number(process.env.SCAN_CHUNK_BLOCKS || 1000);
 const CACHE_MS = Number(process.env.SCAN_CACHE_MS || 20_000);
 const MAX_POOLS = Number(process.env.SCAN_MAX_POOLS || 90);
+/**
+ * Sanity bounds for anything derived in dollars.
+ *
+ * A pool can be initialised at any price, including nonsense, and a nonsense
+ * price propagates through the USD basis walk and turns into a nonsense market
+ * cap on the front page. BOILER would rather drop a market than print
+ * $2,327,233,892,343,440,000,000,000,000 of "inventory".
+ */
+const MAX_USD_PRICE = 1e9;
+const MIN_USD_PRICE = 1e-18;
+const MAX_USD_LIQUIDITY = 1e12;
+const MAX_USD_VOLUME = 1e11;
+
 /** How far back PoolCreated is scanned to establish a listing age. */
 const POOL_AGE_SPAN = Number(process.env.POOL_AGE_SPAN || 200_000);
 
@@ -267,13 +280,20 @@ export async function scanMarkets(force = false): Promise<MarketSnapshot> {
         if (!Number.isFinite(p0in1) || p0in1 <= 0) continue;
         const u0 = usdOf.get(p.token0);
         const u1 = usdOf.get(p.token1);
-        if (u1 !== undefined && u0 === undefined) usdOf.set(p.token0, p0in1 * u1);
-        else if (u0 !== undefined && u1 === undefined) usdOf.set(p.token1, u0 / p0in1);
+        const sane = (v: number) => Number.isFinite(v) && v > MIN_USD_PRICE && v < MAX_USD_PRICE;
+        if (u1 !== undefined && u0 === undefined) {
+          const v = p0in1 * u1;
+          if (sane(v)) usdOf.set(p.token0, v);
+        } else if (u0 !== undefined && u1 === undefined) {
+          const v = u0 / p0in1;
+          if (sane(v)) usdOf.set(p.token1, v);
+        }
       }
     }
 
     const markets: Market[] = [];
     const trades: Trade[] = [];
+    let dropped = 0;
 
     // One market per base token: the pool where that token has the deepest
     // dollar inventory wins, so BOILER is not showing five copies of SPY.
@@ -304,7 +324,7 @@ export async function scanMarkets(force = false): Promise<MarketSnapshot> {
       const p0in1 = priceFromSqrtX96(p.sqrtPriceX96, t0.decimals, t1.decimals);
       const price = quoteIsToken1 ? p0in1 : p0in1 > 0 ? 1 / p0in1 : 0;
       const priceUsd = price * quoteUsd;
-      if (!Number.isFinite(priceUsd) || priceUsd <= 0) continue;
+      if (!Number.isFinite(priceUsd) || priceUsd < MIN_USD_PRICE || priceUsd > MAX_USD_PRICE) continue;
 
       const sorted = [...events].sort((a, b) =>
         a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber - b.blockNumber,
@@ -390,6 +410,18 @@ export async function scanMarkets(force = false): Promise<MarketSnapshot> {
         isNew: birth !== undefined && chain.blockNumber - birth < POOL_AGE_SPAN,
       };
 
+      // A market whose dollar figures are implausible is dropped, not clamped:
+      // a clamped number still reads as a real one.
+      if (
+        !Number.isFinite(liquidityUsd) ||
+        liquidityUsd > MAX_USD_LIQUIDITY ||
+        !Number.isFinite(volumeUsd) ||
+        volumeUsd > MAX_USD_VOLUME
+      ) {
+        dropped++;
+        continue;
+      }
+
       const prev = bestByBase.get(base.address);
       if (!prev || liquidityUsd > prev.depth) bestByBase.set(base.address, { market, depth: liquidityUsd });
     }
@@ -411,7 +443,12 @@ export async function scanMarkets(force = false): Promise<MarketSnapshot> {
         blockTimeSec: chain.blockTimeSec,
       },
       degraded: markets.length === 0,
-      degradedReason: markets.length === 0 ? "No V3 swap activity decoded in the scan window." : null,
+      degradedReason:
+        markets.length === 0
+          ? "No V3 swap activity decoded in the scan window."
+          : dropped > 0
+            ? `${dropped} pool${dropped === 1 ? "" : "s"} dropped: derived dollar values outside plausible bounds.`
+            : null,
       provenance: {
         source: "CHAIN",
         method:

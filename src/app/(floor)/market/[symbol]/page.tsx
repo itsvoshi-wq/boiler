@@ -95,8 +95,8 @@ export default async function MarketPage({ params }: { params: Promise<{ symbol:
           </dl>
         </header>
 
-        <div className="grid gap-4 p-4 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-4">
+        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-4">
             {flags.length > 0 && (
               <Panel label="RISK ON THIS MARKET" bodyClassName="p-0">
                 <ul>
@@ -123,7 +123,8 @@ export default async function MarketPage({ params }: { params: Promise<{ symbol:
               {trades.length === 0 ? (
                 <Empty title="NOTHING MOVING. YET." sub="No decoded swaps for this pool in the window." className="m-3" />
               ) : (
-                <table className="w-full">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[460px]">
                   <tbody>
                     {trades.map((t) => (
                       <tr key={`${t.txHash}-${t.blockNumber}`} className="border-b border-ash2/50 last:border-0">
@@ -156,6 +157,7 @@ export default async function MarketPage({ params }: { params: Promise<{ symbol:
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </Panel>
 
@@ -180,7 +182,7 @@ export default async function MarketPage({ params }: { params: Promise<{ symbol:
             </Panel>
           </div>
 
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <span className="label">ORDER TICKET</span>
@@ -229,9 +231,12 @@ export default async function MarketPage({ params }: { params: Promise<{ symbol:
                 <ul className="space-y-1">
                   {watching.map((d) => (
                     <li key={d.slug}>
-                      <Link href={`/desks/${d.slug}`} className="flex items-baseline justify-between hover:text-term">
-                        <span className="cond text-[13px] text-cream">{d.name}</span>
-                        <span className="mono-tight text-[10px] text-steel2">{num(d.followers)} following</span>
+                      <Link
+                        href={`/desks/${d.slug}`}
+                        className="flex flex-wrap items-baseline justify-between gap-x-3 hover:text-term"
+                      >
+                        <span className="cond min-w-0 truncate text-[13px] text-cream">{d.name}</span>
+                        <span className="mono-tight shrink-0 text-[10px] text-steel2">{num(d.followers)} following</span>
                       </Link>
                     </li>
                   ))}
