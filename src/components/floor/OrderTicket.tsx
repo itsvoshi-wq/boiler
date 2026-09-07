@@ -287,12 +287,38 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
           <Row dark k="MIN RECEIVED" v={q ? `${(Number(q.minAmountOut) / 10 ** (side === "BUY" ? market.base.decimals : market.quote.decimals)).toPrecision(8)}` : "—"} />
         </dl>
 
+        {/* The protocol and desk fees are the configured model, and no BOILER
+            contract is deployed to collect them. Showing them on a ticket
+            without saying that would be the exact trick this product is
+            named after. */}
         <dl className="space-y-1 border-t border-ash2 pt-3 mono-tight text-[11px]">
           <Row dark k={`POOL FEE (${bpsFmt(fees?.poolFeeBps ?? 0)})`} v={usd(fees?.poolFee ?? 0)} />
-          <Row dark k={`PROTOCOL FEE (${bpsFmt(fees?.protocolBps ?? 0)})`} v={usd(fees?.protocolFee ?? 0)} />
-          <Row dark k={`DESK FEE (${bpsFmt(fees?.creatorBps ?? 0)})`} v={usd(fees?.creatorFee ?? 0)} />
-          <Row dark k="TOTAL FEE" v={usd(fees?.totalFee ?? 0)} strong />
+          <Row
+            dark
+            k={`PROTOCOL FEE (${bpsFmt(fees?.protocolBps ?? 0)})`}
+            v={
+              <span>
+                {usd(fees?.protocolFee ?? 0)}{" "}
+                <span className="text-brass">NOT CHARGED</span>
+              </span>
+            }
+          />
+          <Row
+            dark
+            k={`DESK FEE (${bpsFmt(fees?.creatorBps ?? 0)})`}
+            v={
+              <span>
+                {usd(fees?.creatorFee ?? 0)} <span className="text-brass">NOT CHARGED</span>
+              </span>
+            }
+          />
+          <Row dark k="YOU PAY TODAY" v={usd(fees?.poolFee ?? 0)} strong />
         </dl>
+        <p className="mono-tight text-[9px] leading-relaxed text-brass">
+          Only the Uniswap pool fee leaves your wallet. The protocol and desk fees above are the published model, and
+          no BOILER contract is deployed to collect them, so this swap routes straight to SwapRouter02 and BOILER takes
+          nothing. When that changes it changes here first.
+        </p>
 
         {quote?.risk && quote.risk.length > 0 && (
           <ul className="space-y-1 border-t border-ash2 pt-3">
