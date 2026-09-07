@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { decodeAggregate3, encodeAggregate3 } from "@/lib/chain/multicall";
 import { decodeSlot0, decodeString, decodeSwapLog, decodeUint, tickerFrom } from "@/lib/chain/abi";
 import { priceFromSqrtX96, quoteExactInputSingleTick } from "@/lib/chain/uniswapV3";
@@ -190,5 +190,42 @@ describe("asset classification", () => {
   it("always attaches the wrapper disclosure to equity exposure", () => {
     expect(wrapperDisclosure("TSLA", "Tesla • Robinhood Token")).toMatch(/not a legal share/i);
     expect(wrapperDisclosure("WETH", "WETH")).toBeNull();
+  });
+});
+
+describe("public RPC string", () => {
+  const original = process.env.RPC_URL;
+  afterEach(() => {
+    if (original === undefined) delete process.env.RPC_URL;
+    else process.env.RPC_URL = original;
+    vi.resetModules();
+  });
+
+  async function publicUrl(value: string) {
+    process.env.RPC_URL = value;
+    vi.resetModules();
+    const mod = await import("@/lib/chain/public");
+    return mod.rpcUrlPublic();
+  }
+
+  it("never prints an API key that lives in the path", async () => {
+    const out = await publicUrl("https://robinhood-mainnet.g.alchemy.com/v2/alch_SUPERSECRETKEY");
+    expect(out).not.toContain("alch_SUPERSECRETKEY");
+    expect(out).toBe("robinhood-mainnet.g.alchemy.com/…");
+  });
+
+  it("never prints an API key that lives in the query string", async () => {
+    const out = await publicUrl("https://rpc.example.com/?apikey=SECRET123");
+    expect(out).not.toContain("SECRET123");
+  });
+
+  it("never prints basic auth credentials", async () => {
+    const out = await publicUrl("https://user:hunter2@rpc.example.com/");
+    expect(out).not.toContain("hunter2");
+    expect(out).not.toContain("user");
+  });
+
+  it("prints a bare public endpoint in full", async () => {
+    expect(await publicUrl("https://rpc.mainnet.chain.robinhood.com")).toBe("rpc.mainnet.chain.robinhood.com");
   });
 });
