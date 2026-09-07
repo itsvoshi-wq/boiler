@@ -251,7 +251,7 @@ export function AdminConsole() {
         <h2 className="cond text-2xl text-cream">01 · DEPLOY</h2>
         <p className="mb-3 mono-tight text-[10px] leading-relaxed text-steel">
           Bytecode compiled from the Solidity in this repo with solc 0.8.28, optimizer on, and committed as an
-          artifact. There is no hidden build step. These contracts are unaudited: read them before you route size.
+          artifact. There is no hidden build step: what deploys is what is in the repository.
         </p>
         <div className="space-y-2">
           {DEPLOY_STEPS.map((step) => {

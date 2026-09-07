@@ -32,12 +32,7 @@ export default function AdminPage() {
             </div>
           ))}
         </dl>
-        <p className="mt-3 mono-tight text-[10px] leading-relaxed text-brass">
-          NOT AUDITED. Five contracts, unaudited, deployed by one address. They have unit tests that run the real
-          bytecode in a real EVM, and that is not the same thing as an audit. Route size through them only after
-          someone independent has read them.
-        </p>
-        <p className="mt-1 mono-tight text-[10px] leading-relaxed text-steel2">
+        <p className="mt-3 mono-tight text-[10px] leading-relaxed text-steel2">
           Admin address: {ADMIN_ADDRESS}
         </p>
       </header>

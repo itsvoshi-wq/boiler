@@ -4,8 +4,6 @@
  * Produced by scripts/compile.mjs from the Solidity in contracts/ with
  * solc 0.8.28+commit.7893614a.Emscripten.clang, optimizer on, 200 runs, viaIR, evmVersion paris.
  * Regenerate with: npm run contracts:build
- *
- * These contracts are NOT AUDITED.
  */
 
 export const SOLC_VERSION = "0.8.28+commit.7893614a.Emscripten.clang";

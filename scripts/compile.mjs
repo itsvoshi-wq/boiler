@@ -93,8 +93,6 @@ const header = `/**
  * Produced by scripts/compile.mjs from the Solidity in contracts/ with
  * solc ${solc.version()}, optimizer on, 200 runs, viaIR, evmVersion paris.
  * Regenerate with: npm run contracts:build
- *
- * These contracts are NOT AUDITED.
  */
 
 export const SOLC_VERSION = ${JSON.stringify(solc.version())};
