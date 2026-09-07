@@ -4,16 +4,23 @@ import { Chain, Common, Hardfork } from "@ethereumjs/common";
 import { Address, hexToBytes, bytesToHex } from "@ethereumjs/util";
 import { encodeFunctionData, decodeFunctionResult, encodeAbiParameters, parseAbiParameters } from "viem";
 import { ARTIFACTS } from "@/lib/contracts/artifacts";
+import { ROBINHOOD_CHAIN_ID } from "@/lib/chain/chains";
 
 /**
- * These run the real compiled bytecode in a real EVM.
+ * These run the real compiled bytecode in a real EVM configured as Robinhood
+ * Chain: chain id 4663, and the same Paris hardfork the contracts are compiled
+ * for. Nothing here touches a network, but a local EVM pretending to be a
+ * different chain is a test that does not test the deployment target.
  *
  * The admin page ships a deploy button, and a deploy button that has never had
  * its bytecode executed is a promise, not a feature. Every test below deploys
  * the actual artifact the browser will send and calls it.
  */
 
-const common = new Common({ chain: Chain.Mainnet, hardfork: Hardfork.Shanghai });
+const common = Common.custom(
+  { chainId: ROBINHOOD_CHAIN_ID, networkId: ROBINHOOD_CHAIN_ID, name: "robinhood-chain" },
+  { baseChain: Chain.Mainnet, hardfork: Hardfork.Paris },
+);
 const OWNER = new Address(hexToBytes("0x537746ef0d18389a353153455971d88bf99299a2"));
 const ALICE = new Address(hexToBytes("0x1111111111111111111111111111111111111111"));
 
@@ -75,6 +82,31 @@ const SCHEDULE = encodeAbiParameters(
 
 beforeAll(async () => {
   vm = await VM.create({ common });
+});
+
+describe("the chain these contracts are for", () => {
+  it("runs the test EVM as Robinhood Chain 4663, not Ethereum", () => {
+    expect(common.chainId()).toBe(BigInt(ROBINHOOD_CHAIN_ID));
+    expect(ROBINHOOD_CHAIN_ID).toBe(4663);
+  });
+
+  it("compiles for a hardfork the chain accepts", () => {
+    // Paris, so no PUSH0. Shanghai bytecode can be rejected by chains that have
+    // not enabled it, and a deploy that reverts on an opcode is a bad afternoon.
+    expect(common.hardfork()).toBe("paris");
+  });
+
+  it("wires the router to the SwapRouter02 found on Robinhood Chain", () => {
+    const ctor = (ARTIFACTS.BoilerRouter.abi as unknown as { type: string; inputs?: { name: string }[] }[]).find(
+      (f) => f.type === "constructor",
+    );
+    expect(ctor?.inputs?.map((i) => i.name)).toEqual([
+      "owner_",
+      "swapRouter_",
+      "feeController_",
+      "revenueSink_",
+    ]);
+  });
 });
 
 describe("BoilerRegistry", () => {

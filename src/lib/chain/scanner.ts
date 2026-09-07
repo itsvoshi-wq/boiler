@@ -1,4 +1,4 @@
-import { ADDRESSES } from "./chains";
+import { ADDRESSES, ROBINHOOD_CHAIN_ID } from "./chains";
 import {
   SELECTORS,
   TOPICS,
@@ -231,6 +231,32 @@ export async function scanMarkets(force = false): Promise<MarketSnapshot> {
   inflight = (async (): Promise<MarketSnapshot> => {
     const startedAt = Date.now();
     const chain = await getChainStatus();
+
+    // RPC_URL is an environment variable, and an environment variable can be
+    // pointed at the wrong chain. BOILER refuses to render another chain's
+    // markets under Robinhood Chain's name rather than quietly showing them.
+    if (chain.id !== ROBINHOOD_CHAIN_ID) {
+      return {
+        markets: [],
+        trades: [],
+        block: { from: 0, to: 0, latest: chain.blockNumber },
+        windowSeconds: 0,
+        chain: {
+          id: chain.id,
+          blockNumber: chain.blockNumber,
+          gasPriceWei: chain.gasPriceWei,
+          blockTimeSec: chain.blockTimeSec,
+        },
+        degraded: true,
+        degradedReason: `Configured RPC answers for chain ${chain.id}. BOILER is Robinhood Chain ${ROBINHOOD_CHAIN_ID} and will not show another chain's markets.`,
+        provenance: {
+          source: "CHAIN",
+          method: "eth_chainId guard",
+          updatedAt: startedAt,
+        },
+      };
+    }
+
     const to = chain.blockNumber;
     const from = Math.max(0, to - SCAN_BLOCKS + 1);
 
