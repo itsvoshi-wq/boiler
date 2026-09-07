@@ -229,3 +229,68 @@ describe("public RPC string", () => {
     expect(await publicUrl("https://rpc.mainnet.chain.robinhood.com")).toBe("rpc.mainnet.chain.robinhood.com");
   });
 });
+
+describe("BOILER router wiring", () => {
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_BOILER_ROUTER;
+    vi.resetModules();
+  });
+
+  async function mod(routerAddress?: string) {
+    if (routerAddress) process.env.NEXT_PUBLIC_BOILER_ROUTER = routerAddress;
+    else delete process.env.NEXT_PUBLIC_BOILER_ROUTER;
+    vi.resetModules();
+    return import("@/lib/chain/boiler");
+  }
+
+  it("routes straight to Uniswap while no BOILER router is configured", async () => {
+    const m = await mod();
+    expect(m.feesAreLive()).toBe(false);
+    expect(m.spenderFor().toLowerCase()).toBe("0xcaf681a66d020601342297493863e78c959e5cb2");
+  });
+
+  it("approves the BOILER router once one is configured", async () => {
+    const m = await mod("0x1234567890123456789012345678901234567890");
+    expect(m.feesAreLive()).toBe(true);
+    expect(m.spenderFor().toLowerCase()).toBe("0x1234567890123456789012345678901234567890");
+  });
+
+  it("refuses to build a swap with no minimum output", async () => {
+    const m = await mod("0x1234567890123456789012345678901234567890");
+    expect(() =>
+      m.buildBoilerSwap({
+        tokenIn: "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+        tokenOut: "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        poolFee: 500,
+        amountIn: 10n ** 18n,
+        amountOutMinimum: 0n,
+      }),
+    ).toThrow(/minimum output/i);
+  });
+
+  it("refuses to build a swap when no router is configured", async () => {
+    const m = await mod();
+    expect(() =>
+      m.buildBoilerSwap({
+        tokenIn: "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+        tokenOut: "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        poolFee: 500,
+        amountIn: 10n ** 18n,
+        amountOutMinimum: 1n,
+      }),
+    ).toThrow(/no boiler router/i);
+  });
+
+  it("encodes exactInputSingle against the configured router with a live deadline", async () => {
+    const m = await mod("0x1234567890123456789012345678901234567890");
+    const plan = m.buildBoilerSwap({
+      tokenIn: "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      tokenOut: "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      poolFee: 500,
+      amountIn: 10n ** 18n,
+      amountOutMinimum: 1n,
+    });
+    expect(plan.to.toLowerCase()).toBe("0x1234567890123456789012345678901234567890");
+    expect(plan.data.length).toBeGreaterThan(200);
+  });
+});

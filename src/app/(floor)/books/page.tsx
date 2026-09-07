@@ -4,6 +4,11 @@ import { DEFAULT_FEES, FEE_HARD_CAP_BPS, modelledProtocolTake } from "@/lib/doma
 import { FLAGGED_ALLOCATION, REVENUE_STATE, routeRevenue } from "@/lib/domain/revenue";
 import { FLAGS, FLAG_NOTES, type FlagKey } from "@/lib/flags";
 import { STORE_NOTE } from "@/lib/data/store";
+import {
+  PROTOCOL_DEPLOYED_NOTE,
+  PROTOCOL_NOT_DEPLOYED_NOTE,
+  readProtocolState,
+} from "@/lib/contracts/onchain";
 import { ADDRESSES, EXPLORER } from "@/lib/chain/chains";
 import { rpcUrlPublic } from "@/lib/chain/public";
 import { duration, num, usd } from "@/lib/format";
@@ -19,6 +24,8 @@ export default async function BooksPage() {
   const observedTrades = snap.markets.reduce((a, m) => a + m.trades, 0);
   const modelled = modelledProtocolTake(observedVolume);
   const allocation = routeRevenue(modelled.protocol);
+  const protocol = await readProtocolState();
+  const realised = protocol.routed.reduce((a, r) => a + Number(r.amount) / 10 ** r.decimals, 0);
 
   return (
     <div>
@@ -52,7 +59,7 @@ export default async function BooksPage() {
           <table className="relative w-full">
             <tbody className="mono-tight text-[12px]">
               {[
-                ["PROTOCOL REVENUE COLLECTED", usd(REVENUE_STATE.realisedRevenueUsd)],
+                ["PROTOCOL REVENUE ROUTED", protocol.deployed ? usd(realised) : usd(REVENUE_STATE.realisedRevenueUsd)],
                 ["CREATOR PAYOUTS", usd(0)],
                 ["BROKER PAYOUTS", usd(0)],
                 ["$BOIL BUYBACKS EXECUTED", usd(REVENUE_STATE.buybacksExecutedUsd)],
@@ -70,8 +77,10 @@ export default async function BooksPage() {
             </tbody>
           </table>
           <p className="relative mt-4 border-t-2 border-black/60 pt-3 mono-tight text-[11px] leading-relaxed text-black/75">
-            <strong className="tracking-[0.12em]">WHY EVERY LINE IS ZERO: </strong>
-            {REVENUE_STATE.note}
+            <strong className="tracking-[0.12em]">
+              {protocol.deployed ? "WHERE THESE COME FROM: " : "WHY EVERY LINE IS ZERO: "}
+            </strong>
+            {protocol.deployed ? PROTOCOL_DEPLOYED_NOTE : PROTOCOL_NOT_DEPLOYED_NOTE}
           </p>
         </div>
       </section>
@@ -220,6 +229,43 @@ export default async function BooksPage() {
           Allocation is validated to total exactly 10,000 bps and rejected otherwise. Changing it changes this table.
           There is no second set of percentages anywhere in the codebase.
         </p>
+      </section>
+
+      {/* ------------------------------------------------------- contracts */}
+      <section className="border-b border-ash2 px-4 py-8">
+        <div className="mb-4 flex flex-wrap items-baseline gap-3">
+          <h3 className="cond text-2xl text-cream">THE CONTRACTS</h3>
+          <SourceChip source={protocol.deployed ? "CHAIN" : "CONFIG"} />
+        </div>
+        {!protocol.deployed ? (
+          <p className="max-w-3xl mono-tight text-[11px] leading-relaxed text-steel">
+            Nothing is deployed. The Solidity is in the repository, it compiles, and it has unit tests that run the
+            real bytecode in a real EVM, but until it is on chain it collects nothing and this page will keep saying
+            so.
+            {protocol.error ? ` Registry read: ${protocol.error}` : ""}
+          </p>
+        ) : (
+          <dl className="max-w-4xl border border-ash2">
+            {[
+              ["REGISTRY", protocol.registry ?? ""],
+              ...Object.entries(protocol.addresses).map(([k, v]) => [k.toUpperCase(), v as string]),
+              ["ROUTER PAUSED", protocol.paused === null ? "unknown" : protocol.paused ? "YES" : "NO"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex flex-wrap justify-between gap-2 border-b border-ash2/50 px-3 py-2 last:border-0">
+                <dt className="mono-tight text-[10px] tracking-[0.16em] text-steel2">{k}</dt>
+                <dd className="mono-tight text-[10px] break-all text-cream2">
+                  {String(v).startsWith("0x") ? (
+                    <a href={EXPLORER.address(String(v))} target="_blank" rel="noreferrer" className="hover:text-term">
+                      {v}
+                    </a>
+                  ) : (
+                    v
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </section>
 
       {/* ------------------------------------------------------------ flags */}

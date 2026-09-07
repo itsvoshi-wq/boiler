@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { useAccount, useChainId, useConnect, usePublicClient, useSendTransaction, useSwitchChain } from "wagmi";
-import { ROBINHOOD_CHAIN_ID, ADDRESSES, EXPLORER } from "@/lib/chain/chains";
+import { ROBINHOOD_CHAIN_ID, EXPLORER } from "@/lib/chain/chains";
 import { ERC20_ABI, approveData, buildSwap, minOutFor } from "@/lib/chain/swap";
+import { buildBoilerSwap, feesAreLive, spenderFor } from "@/lib/chain/boiler";
 import { FLAGS } from "@/lib/flags";
 import { cn } from "@/lib/cn";
 import { bps as bpsFmt, usd } from "@/lib/format";
@@ -101,6 +102,8 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
     [numeric, inDecimals, valid],
   );
 
+  const fees = quote?.fees;
+
   const submit = useCallback(async () => {
     setMessage(null);
     setTxHash(null);
@@ -126,38 +129,57 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
       const minOut = minOutFor(amountOut, slippage);
       if (minOut <= 0n) throw new Error("ORDER REJECTED. Quote produced no output.");
 
-      // 1. Approval, exact amount, never unlimited by default.
+      // 1. Approval, exact amount, never unlimited by default. The spender is
+      //    the BOILER router when one is deployed, Uniswap directly when not.
+      const spender = spenderFor();
       setStage("APPROVING");
       const allowance = (await publicClient.readContract({
         address: tokenIn,
         abi: ERC20_ABI,
         functionName: "allowance",
-        args: [address, ADDRESSES.swapRouter02 as Address],
+        args: [address, spender],
       })) as bigint;
 
       if (allowance < amountInWei) {
         const approveHash = await sendTransactionAsync({
           to: tokenIn,
-          data: approveData(ADDRESSES.swapRouter02 as Address, amountInWei),
+          data: approveData(spender, amountInWei),
         });
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
       }
 
       // 2. Simulate the exact calldata before asking for a signature.
+      //    Through BOILER the fee comes off the input, so the minimum output
+      //    has to be scaled by the same fraction or the guard fights the fee.
       setStage("SIMULATING");
-      const plan = buildSwap({
-        tokenIn,
-        tokenOut,
-        feePips: market.pool.feePips,
-        amountIn: amountInWei,
-        amountOutMinimum: minOut,
-        recipient: address,
-      });
-      await publicClient.call({ account: address, to: plan.router, data: plan.data });
+      const feeBps = feesAreLive() ? Math.round((fees?.protocolBps ?? 0) + (fees?.creatorBps ?? 0)) : 0;
+      const guardedMinOut = feeBps > 0 ? (minOut * BigInt(10_000 - feeBps)) / 10_000n : minOut;
+
+      const plan = feesAreLive()
+        ? buildBoilerSwap({
+            tokenIn,
+            tokenOut,
+            poolFee: market.pool.feePips,
+            amountIn: amountInWei,
+            amountOutMinimum: guardedMinOut,
+          })
+        : (() => {
+            const p = buildSwap({
+              tokenIn,
+              tokenOut,
+              feePips: market.pool.feePips,
+              amountIn: amountInWei,
+              amountOutMinimum: minOut,
+              recipient: address,
+            });
+            return { to: p.router, data: p.data };
+          })();
+
+      await publicClient.call({ account: address, to: plan.to, data: plan.data });
 
       // 3. Sign.
       setStage("SIGNING");
-      const hash = await sendTransactionAsync({ to: plan.router, data: plan.data });
+      const hash = await sendTransactionAsync({ to: plan.to, data: plan.data });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       setTxHash(receipt.transactionHash);
       setStage(receipt.status === "success" ? "FILLED" : "REJECTED");
@@ -182,10 +204,11 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
     market.pool.feePips,
     amountInWei,
     sendTransactionAsync,
+    fees,
   ]);
 
-  const fees = quote?.fees;
   const q = quote?.quote;
+  const live = feesAreLive();
 
   if (stage === "FILLED" && txHash) {
     return (
@@ -200,7 +223,7 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
           <Row k="EST. RECEIVED" v={`${q?.amountOutHuman.toPrecision(8) ?? "—"} ${outSymbol}`} />
           <Row k="MIN ACCEPTED" v={`${q ? (Number(q.minAmountOut) / 10 ** (side === "BUY" ? market.base.decimals : market.quote.decimals)).toPrecision(8) : "—"}`} />
           <Row k="POOL FEE" v={usd(fees?.poolFee ?? 0)} />
-          <Row k="PROTOCOL FEE" v={`${usd(fees?.protocolFee ?? 0)} (not collected, no contract deployed)`} />
+          <Row k="PROTOCOL FEE" v={live ? usd(fees?.protocolFee ?? 0) : `${usd(fees?.protocolFee ?? 0)} (not collected, no contract deployed)`} />
           <Row k="TX" v={txHash.slice(0, 18) + "…"} />
         </dl>
         <a
@@ -298,8 +321,8 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
             k={`PROTOCOL FEE (${bpsFmt(fees?.protocolBps ?? 0)})`}
             v={
               <span>
-                {usd(fees?.protocolFee ?? 0)}{" "}
-                <span className="text-brass">NOT CHARGED</span>
+                {usd(fees?.protocolFee ?? 0)}
+                {!live && <span className="ml-1 text-brass">NOT CHARGED</span>}
               </span>
             }
           />
@@ -308,16 +331,17 @@ export function OrderTicket({ market, creatorBps = 0 }: { market: Market; creato
             k={`DESK FEE (${bpsFmt(fees?.creatorBps ?? 0)})`}
             v={
               <span>
-                {usd(fees?.creatorFee ?? 0)} <span className="text-brass">NOT CHARGED</span>
+                {usd(fees?.creatorFee ?? 0)}
+                {!live && <span className="ml-1 text-brass">NOT CHARGED</span>}
               </span>
             }
           />
-          <Row dark k="YOU PAY TODAY" v={usd(fees?.poolFee ?? 0)} strong />
+          <Row dark k="YOU PAY TODAY" v={usd(live ? (fees?.totalFee ?? 0) : (fees?.poolFee ?? 0))} strong />
         </dl>
-        <p className="mono-tight text-[9px] leading-relaxed text-brass">
-          Only the Uniswap pool fee leaves your wallet. The protocol and desk fees above are the published model, and
-          no BOILER contract is deployed to collect them, so this swap routes straight to SwapRouter02 and BOILER takes
-          nothing. When that changes it changes here first.
+        <p className={cn("mono-tight text-[9px] leading-relaxed", live ? "text-steel2" : "text-brass")}>
+          {live
+            ? "Routed through the BOILER contract, so the protocol and desk fees above actually leave your wallet. They are taken from the input before the swap, the remainder is swapped through Uniswap V3 with you as the recipient, and the whole split is in the transaction's event."
+            : "Only the Uniswap pool fee leaves your wallet. The protocol and desk fees above are the published model, and no BOILER contract is deployed to collect them, so this swap routes straight to SwapRouter02 and BOILER takes nothing. When that changes it changes here first."}
         </p>
 
         {quote?.risk && quote.risk.length > 0 && (
